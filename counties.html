@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8"/>
+        
+    </head>
+    <body>
+        <div id="chart"></div>
+        <script src="https://unpkg.com/d3@4.13.0/build/d3.min.js"></script>
+        <script src="https://unpkg.com/d3-geo@1.10.0/dist/d3-geo.js"></script>
+        <script src="https://unpkg.com/topojson@3.0.2/dist/topojson.js"></script>
+        <script>
+            d3.json("https://raw.githubusercontent.com/deldersveld/topojson/master/countries/norway/norway-counties.json",
+                function (json) {
+                    var width = 2000,
+                        height = 2000;
+
+                    var svg = d3.select("#chart").append("svg")
+                        .attr("width", width)
+                        .attr("height", height);
+
+                    var projection = d3.geoProjection(function (x, y) {
+                        return [x, Math.log(Math.tan(Math.PI / 4 + y / 2))];
+                    });
+
+                    projection = d3.geoNaturalEarth1();
+                    projection = d3.geoProjection(function (x, y) { return [x, y]; });
+
+                    // var path = d3.geo.path()
+                    //     .projection(d3.geo.mercator()
+                    //         .scale(20000)
+                    //         .translate([0, 3800])
+                    //     );
+
+                    var counties = topojson.feature(json, json.objects.NOR_adm1).features,
+                        bboxes = counties.map(function(d) { return d3.geoBounds(d); });
+                        bbox = bboxes.reduce(function(a,c) { 
+                            return [
+                                [ Math.min(a[0][0], c[0][0]), Math.max(a[0][1], c[0][1]) ],
+                                [ Math.min(a[1][0], c[1][0]), Math.max(a[1][1], c[1][1]) ]
+                            ]; 
+                        });
+                        neighbors = topojson.neighbors(json.objects.NOR_adm1.geometries);
+
+                    var scale = 0.95 / Math.max((bbox[1][0] - bbox[0][0]) / width, (bbox[1][1] - bbox[0][1]) / height),
+                        translation = [(width - scale * (bbox[1][0] + bbox[0][0])) / 2, (height - scale * (bbox[1][1] + bbox[0][1])) / 2];
+
+                    // projection.scale(1).translate([0,0]);
+                    // projection.scale(scale).translate(translation);
+
+                    var xMin = bbox[0][0];
+                    var xMax = bbox[1][0];
+                    var xSpan = xMax - xMin;
+                    var yMin = bbox[0][1];
+                    var yMax = bbox[1][1];
+                    var ySpan = yMax - yMin;
+
+                    function scaleToOne(x, y) {
+                        return [
+                            x - xMin / xSpan,
+                            y - yMin / ySpan
+                        ];
+                    }
+
+                    projection = d3.geoProjection(scaleToOne);
+
+                    var path = d3.geoPath(projection);
+
+                    svg.selectAll(".county")
+                        .data(counties)
+                        .enter()
+                            .insert("path", ".graticule")
+                            .attr("class", "county")
+                            .attr("d", path)
+                            .style("fill", "#ffff00" /*function(d, i) { return color(d.color = d3.max(neighbors[i], function (n) {return counties[n].color; }) + 1 | 0); }*/);
+
+
+                    // console.log(svg.getBBox());
+                    // svg.append("g")
+                    // .attr("class", "black")
+                    // .selectAll("path")
+                    // .data(json.features)
+                    // .enter()
+                    // .append("path")
+                    // .attr("d", path);
+                }
+            );
+        </script>
+    </body>
+</html>

@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html>
+    <head></head>
+    <body>
+        <div id="workspace"></div>
+        <script src="https://unpkg.com/d3@4.13.0/build/d3.min.js"></script>
+        <script src="https://unpkg.com/@turf/turf@5.1.6/turf.min.js"></script>
+        <script>
+            var app = app || {};
+            app.geoJson = app.geoJson || {};
+            
+            d3.json("http://norgeskart.no/json/norge/fylker.json", function (error, data) {
+                app.geoJson.counties = data;
+                whenDataIsLoaded();
+            })
+            d3.json("http://norgeskart.no/json/norge/500m.geojson", function (error, data) {
+                app.geoJson.norway = data;
+                whenDataIsLoaded();
+            });
+
+            app.main = function() {
+                console.log("Counties:");
+                console.log(app.geoJson.counties);
+                console.log("Norway:");
+                console.log(app.geoJson.norway);
+
+                var result = {
+                    type: "FeaturesCollection",
+                    features: []
+                };
+                let norway = {
+                    geometry: app.geoJson.norway,
+                    type: "Feature",
+                    properties: { n: "norway" }
+                };
+
+                app.poly1 = turf.polygon([[
+                [-122.801742, 45.48565],
+                [-122.801742, 45.60491],
+                [-122.584762, 45.60491],
+                [-122.584762, 45.48565],
+                [-122.801742, 45.48565]
+                ]]);
+
+                app.poly2 = turf.polygon([[
+                [-122.520217, 45.535693],
+                [-122.64038, 45.553967],
+                [-122.720031, 45.526554],
+                [-122.669906, 45.507309],
+                [-122.723464, 45.446643],
+                [-122.532577, 45.408574],
+                [-122.487258, 45.477466],
+                [-122.520217, 45.535693]
+                ]]);
+
+                app.polyX = turf.multiPolygon([[[0,0],[1,0],[1,1],[1,0]]])
+                app.polyY = turf.multiPolygon([[[0.5, -0.5], [1.5, 0.5], [0.5, 1.5], [-0.5, 0.5]]]);
+                app.xyIntersection = turf.intersect(app.polyX, app.polyY);
+
+                app.intersection = turf.intersect(app.poly1, app.poly2);
+
+                var countyBuffer = [];
+
+                app.geoJson.counties.features.forEach(function (county) {
+                    if (county.geometry === null || county.geometry.coordinates == null)
+                        return;
+                    var multiPolygon = turf.multiPolygon(county.geometry.coordinates || [])
+                    countyBuffer.push(multiPolygon);
+                    // console.log(county);
+                    // console.log(norway);
+                    // var intersection = turf.intersect(county, norway);
+                    
+                    // result.features.push(intersection);
+                });
+
+                countyBuffer.forEach(function (county) {
+                    var intersection = turf.intersect(county, norway);
+                    result.features.push(intersection);
+                });
+
+                console.log(countyBuffer.length);
+                debugger;
+
+                console.log(result);
+                console.log(JSON.stringify(result));
+            };
+
+            function whenDataIsLoaded() {
+                if (app.geoJson.counties === undefined)
+                    return;
+
+                if (app.geoJson.norway === undefined)
+                    return;
+
+                app.main();
+            }
+        </script>
+    </body>
+</html>
